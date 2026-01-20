@@ -1,0 +1,23 @@
+[
+  {
+    "id": "8d1b818a-81bc-4120-9343-d086ebfadcd8",
+    "key": "WARE-ofkUX1qWbmTY-95XmCsViFLSF-oenfXxDqRhrY-aWqnSg",
+    "hwid": "1e",
+    "createdAt": 1768915431521,
+    "expiresAt": 1769001831521
+  },
+  {
+    "id": "a0944b1e-4ef6-42f0-bc76-62c0884d0785",
+    "key": "WARE-qHXzq8TNGm1D-BsUVCRzfcEOj-9sKytsVkdrdY-IrFfiQ",
+    "hwid": "44fd8ca8",
+    "createdAt": 1768916080081,
+    "expiresAt": 1769002480081
+  },
+  {
+    "id": "ac627c19-ff62-4d62-a9da-7f3b9f071b29",
+    "key": "WARE-gDy5qonTOB9p-ISmktup0oj0q-QAHFfhIC33V0-HUCYAQ",
+    "hwid": "PERMANENT-3549de66-82ac-4679-816c-ff19a6697731",
+    "createdAt": 1768918445043,
+    "expiresAt": null
+  }
+]
