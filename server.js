@@ -58,12 +58,15 @@ const store = loadKeys();
 
 // -------------------- USER API --------------------
 app.get("/api/get-key", (req, res) => {
-  const hwid = req.headers["x-hwid"];
+  const hwid = getHWID(req);
   if (!hwid) return res.status(400).json({ error: "Missing HWID" });
 
   const now = Date.now();
   const existing = store.get(hwid);
-  if (existing && existing.expiresAt > now) return res.json(existing);
+
+  if (existing && existing.expiresAt > now) {
+    return res.json(existing);
+  }
 
   const keyData = {
     id: uuidv4(),
