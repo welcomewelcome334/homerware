@@ -30,29 +30,17 @@ function generateKey(hwid) {
   return `${KEY_PREFIX}-${raw.match(/.{1,12}/g).join("-")}`;
 }
 
-async function redeemCode() {
-  const code = document.getElementById("promoCode").value.trim();
-  if (!code) return alert("Enter a valid code!");
+function getHWID(req) {
+  const queryHwid = req.query.hwid;
+  const headerHwid = req.headers["x-hwid"];
+  const fallback = req.headers["user-agent"] + "_" + req.ip;
 
-  try {
-    const res = await fetch(`${API}/redeem-code`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-hwid": generateHWID()
-      },
-      body: JSON.stringify({ code })
-    });
-    const data = await res.json();
-    if (data.success) {
-      alert(`Success! Your key expires in ${data.expiresAtText}`);
-      timerEl.textContent = data.expiresAtText;
-    } else {
-      alert("Invalid or expired code.");
-    }
-  } catch(err) {
-    alert("Server error, try again later.");
-  }
+  console.log("HWID sources:");
+  console.log(" - Query param:", queryHwid);
+  console.log(" - Header:", headerHwid);
+  console.log(" - Fallback:", fallback);
+
+  return queryHwid || headerHwid || fallback;
 }
 
 function loadKeys() {
@@ -114,32 +102,22 @@ app.post("/panel/generate-key", (req, res) => {
 });
 
 // server.js
-app.post("/api/get-key", (req, res) => {
-    const { key, hwid } = req.body;
-    if (!key || !hwid) return res.json({ success: false, message: "Missing key or hwid" });
+app.get("/api/get-key", async (req, res) => {
+  const hwid = getHWID(req);
+  const now = Date.now();
 
-    let validKey = null;
-    for (const k of store.values()) {
-        // Key matches AND either permanent or not expired
-        if (k.key === key && (k.expiresAt === Infinity || k.expiresAt > Date.now())) {
-            validKey = k;
-            break;
-        }
-    }
+  console.log("Processing request for HWID:", hwid);
 
-    if (!validKey) return res.json({ success: false, message: "Invalid or expired key" });
-
-    // Optional: Assign HWID if not already assigned
-    if (!validKey.hwid) validKey.hwid = hwid;
-
-    res.json({
-        success: true,
-        key: validKey.key,
-        hwid: validKey.hwid,
-        createdAt: validKey.createdAt,
-        expiresAt: validKey.expiresAt
-    });
-});
+  let existing = keys.find(k => k.hwid === hwid && k.expiresAt > now);
+  if (existing) {
+    console.log("Found existing key:", existing.key);
+    await sendWebhookLog(
+      "Key Used (Existing)",
+      `**HWID:** \`${hwid}\`\n**Key:** \`${existing.key}\`\n**Expires:** <t:${Math.floor(existing.expiresAt/1000)}:R>`,
+      0x00FF00
+    );
+    return res.json(existing);
+  }
 
 // -------------------- OWNER PANEL --------------------
 app.use(
