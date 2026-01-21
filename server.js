@@ -83,6 +83,25 @@ function authAdmin(req, res, next) {
   next();
 }
 
+app.get("/api/get-key", async (req, res) => {
+  const hwid = getHWID(req);
+  const now = Date.now();
+
+  console.log("Processing request for HWID:", hwid);
+
+  // Find an existing valid key for this HWID
+  let existing = keys.find(k => k.hwid === hwid && k.expiresAt > now);
+
+  if (existing) {
+    // If key is valid
+    console.log("Found existing valid key:", existing.key);
+    return res.json(existing); // Return the key info
+  } 
+
+  // If no valid key exists for this HWID, send error
+  return res.status(404).json({ error: "No valid key found for this HWID. Please enter a new key manually." });
+});
+
 // Validate a key without auto-generating
 app.get("/api/validate-key", async (req, res) => {
   const key = req.query.key;
@@ -121,45 +140,6 @@ app.get("/api/validate-key", async (req, res) => {
   );
 
   res.json(existing);
-});
-
-app.get("/api/get-key", async (req, res) => {
-  const hwid = getHWID(req);
-  const now = Date.now();
-
-  console.log("Processing request for HWID:", hwid);
-
-  let existing = keys.find(k => k.hwid === hwid && k.expiresAt > now);
-  if (existing) {
-    console.log("Found existing key:", existing.key);
-    await sendWebhookLog(
-      "Key Used (Existing)",
-      `**HWID:** \`${hwid}\`\n**Key:** \`${existing.key}\`\n**Expires:** <t:${Math.floor(existing.expiresAt/1000)}:R>`,
-      0x00FF00
-    );
-    return res.json(existing);
-  }
-
-  console.log("No existing key found - generating new");
-
-  const newKey = {
-    id: uuidv4(),
-    key: generateKey(),
-    hwid,
-    createdAt: now,
-    expiresAt: now + 24 * 60 * 60 * 1000
-  };
-
-  keys.push(newKey);
-  saveKeys();
-
-  await sendWebhookLog(
-    "New Key Generated",
-    `**HWID:** \`${hwid}\`\n**Key:** \`${newKey.key}\`\n**Expires:** <t:${Math.floor(newKey.expiresAt/1000)}:R>`,
-    0xFFFF00
-  );
-
-  res.json(newKey);
 });
 
 // Admin routes (unchanged)
