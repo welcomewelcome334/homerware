@@ -20,15 +20,6 @@ const KEY_PREFIX = "WARE";
 const SECRET = "HOMERWARE_SUPER_SECRET";
 
 // -------------------- HELPER --------------------
-function generateKey(hwid) {
-  const raw = crypto
-    .createHash("sha256")
-    .update(hwid + SECRET)
-    .digest("base64")
-    .replace(/[^a-zA-Z0-9]/g, "")
-    .slice(0, 48);
-  return `${KEY_PREFIX}-${raw.match(/.{1,12}/g).join("-")}`;
-}
 
 function getHWID(req) {
   const queryHwid = req.query.hwid;
@@ -41,6 +32,16 @@ function getHWID(req) {
   console.log(" - Fallback:", fallback);
 
   return queryHwid || headerHwid || fallback;
+}
+
+function generateKey(hwid) {
+  const raw = crypto
+    .createHash("sha256")
+    .update(hwid + SECRET)
+    .digest("base64")
+    .replace(/[^a-zA-Z0-9]/g, "")
+    .slice(0, 48);
+  return `${KEY_PREFIX}-${raw.match(/.{1,12}/g).join("-")}`;
 }
 
 function loadKeys() {
@@ -105,22 +106,32 @@ app.post("/panel/generate-key", (req, res) => {
 });
 
 // server.js
-app.get("/api/get-key", async (req, res) => {
-  const hwid = getHWID(req);
-  const now = Date.now();
+app.post("/api/get-key", (req, res) => {
+    const { key, hwid } = req.body;
+    if (!key || !hwid) return res.json({ success: false, message: "Missing key or hwid" });
 
-  console.log("Processing request for HWID:", hwid);
+    let validKey = null;
+    for (const k of store.values()) {
+        // Key matches AND either permanent or not expired
+        if (k.key === key && (k.expiresAt === Infinity || k.expiresAt > Date.now())) {
+            validKey = k;
+            break;
+        }
+    }
 
-  let existing = keys.find(k => k.hwid === hwid && k.expiresAt > now);
-  if (existing) {
-    console.log("Found existing key:", existing.key);
-    await sendWebhookLog(
-      "Key Used (Existing)",
-      `**HWID:** \`${hwid}\`\n**Key:** \`${existing.key}\`\n**Expires:** <t:${Math.floor(existing.expiresAt/1000)}:R>`,
-      0x00FF00
-    );
-    return res.json(existing);
-  }
+    if (!validKey) return res.json({ success: false, message: "Invalid or expired key" });
+
+    // Optional: Assign HWID if not already assigned
+    if (!validKey.hwid) validKey.hwid = hwid;
+
+    res.json({
+        success: true,
+        key: validKey.key,
+        hwid: validKey.hwid,
+        createdAt: validKey.createdAt,
+        expiresAt: validKey.expiresAt
+    });
+});
 
 // -------------------- OWNER PANEL --------------------
 app.use(
